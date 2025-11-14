@@ -10,6 +10,10 @@ Features:
 - A user capture or upload a photo for language detection and translation.
 - The translated text will be displayed onto an overlay above the original text (z-index).
 
+## Document
+
+- [Bounding box detection - Vertex AI > Generative AI on Vertex AI > Guides](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/bounding-box-detection).
+
 ## Run the app
 
 ### Run Locally
