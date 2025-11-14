@@ -5,6 +5,8 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { CameraIcon } from './components/CameraIcon';
 import { NoCameraIcon } from './components/NoCameraIcon';
 import { GalleryIcon } from './components/GalleryIcon';
+import { GearIcon } from './components/GearIcon';
+import { CloseIcon } from './components/CloseIcon';
 import { LanguageModal } from './components/LanguageModal';
 import { LANGUAGES } from './languages';
 
@@ -15,6 +17,7 @@ const App: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<string>("Initializing camera...");
   const [translatedItems, setTranslatedItems] = useState<TranslatedText[]>([]);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   const [sourceLang, setSourceLang] = useState<string>('en');
   const [targetLang, setTargetLang] = useState<string>('vi');
@@ -31,6 +34,9 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaContainerRef = useRef<HTMLElement>(null);
   const isCapturingRef = useRef<boolean>(false);
+  
+  const isStaticView = !!uploadedImage || !!capturedImage;
+  const staticImageSource = uploadedImage || capturedImage;
 
   const updateRenderDimensions = useCallback(() => {
     const container = mediaContainerRef.current;
@@ -46,7 +52,7 @@ const App: React.FC = () => {
     const video = videoRef.current;
     const image = imageRef.current;
 
-    if (uploadedImage && image && image.naturalWidth) {
+    if (staticImageSource && image && image.naturalWidth) {
         sourceWidth = image.naturalWidth;
         sourceHeight = image.naturalHeight;
         isContain = true;
@@ -88,7 +94,7 @@ const App: React.FC = () => {
     const y = (containerHeight - renderHeight) / 2;
     
     setRenderDimensions({ x, y, width: renderWidth, height: renderHeight });
-  }, [uploadedImage, stream]);
+  }, [staticImageSource, stream]);
 
   useEffect(() => {
     const container = mediaContainerRef.current;
@@ -102,7 +108,7 @@ const App: React.FC = () => {
 
 
   useEffect(() => {
-    if (uploadedImage) {
+    if (isStaticView) {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
         setStream(null);
@@ -123,7 +129,6 @@ const App: React.FC = () => {
       } catch (err) {
         console.error("Error accessing camera:", err);
         setError("Camera access denied. Please enable camera permissions in your browser settings.");
-        setStatusMessage("Camera access denied.");
       }
     };
     
@@ -135,51 +140,21 @@ const App: React.FC = () => {
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadedImage]);
-  
-  const captureFrameAndTranslate = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || isCapturingRef.current) {
-      return;
-    }
+  }, [isStaticView]);
 
-    const video = videoRef.current;
-    if (video.readyState < 2) {
-      return;
-    }
+  useEffect(() => {
+      if (isStaticView || isLoading) return;
 
-    isCapturingRef.current = true;
-    setIsLoading(true);
-    setTranslatedItems([]);
-    setStatusMessage("Capturing view...");
-
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext('2d');
-    if (context) {
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const base64Image = canvas.toDataURL('image/jpeg');
-
-      try {
-        setStatusMessage("Translating text...");
-        const result = await translateTextInImage(base64Image, sourceLang, targetLang);
-        if (result && result.length > 0) {
-          setTranslatedItems(result);
-          setStatusMessage("");
-        } else {
-          setStatusMessage("No text found. Hold steady.");
-        }
-      } catch (apiError) {
-        console.error("Gemini API error:", apiError);
-        setStatusMessage("Translation failed. Please try again.");
+      if (stream) {
+          setStatusMessage("Point at text and press the shutter button.");
+      } else if (error) {
+          setStatusMessage("Camera access denied.");
+      } else {
+          setStatusMessage("Initializing camera...");
       }
-    }
-
-    setIsLoading(false);
-    isCapturingRef.current = false;
-  }, [sourceLang, targetLang]);
-
-  const translateUploadedImage = useCallback(async (base64Image: string) => {
+  }, [isStaticView, stream, error, isLoading]);
+  
+  const translateStaticImage = useCallback(async (base64Image: string) => {
     setIsLoading(true);
     setTranslatedItems([]);
     setStatusMessage("Analyzing image...");
@@ -199,36 +174,42 @@ const App: React.FC = () => {
     }
 
     setIsLoading(false);
+    isCapturingRef.current = false;
   }, [sourceLang, targetLang]);
   
   useEffect(() => {
-    if (uploadedImage) {
-        translateUploadedImage(uploadedImage);
+    if (staticImageSource) {
+        translateStaticImage(staticImageSource);
     }
-  }, [uploadedImage, translateUploadedImage]);
+  }, [staticImageSource, translateStaticImage]);
 
-  useEffect(() => {
-    if (!stream || uploadedImage) return;
-
-    let intervalId: ReturnType<typeof setInterval> | undefined;
-
-    const startCaptureLoop = () => {
-        intervalId = setInterval(() => {
-            captureFrameAndTranslate();
-        }, 4000);
-    };
-
-    if (videoRef.current) {
-        videoRef.current.onplaying = () => {
-            setStatusMessage("Hold camera still to translate...");
-            startCaptureLoop();
-        };
+  const handleCaptureAndTranslate = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current || isCapturingRef.current) {
+      return;
     }
+    const video = videoRef.current;
+    if (video.readyState < 2) {
+      return;
+    }
+    isCapturingRef.current = true;
+    setIsLoading(true);
+    setTranslatedItems([]);
+    setStatusMessage("Capturing view...");
 
-    return () => {
-        clearInterval(intervalId);
-    };
-  }, [stream, captureFrameAndTranslate, uploadedImage]);
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (context) {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const base64Image = canvas.toDataURL('image/jpeg');
+      setCapturedImage(base64Image);
+    } else {
+        setIsLoading(false);
+        isCapturingRef.current = false;
+        setStatusMessage("Failed to capture frame.");
+    }
+  }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -238,6 +219,7 @@ const App: React.FC = () => {
     reader.onload = (e) => {
         const base64Image = e.target?.result as string;
         if (base64Image) {
+            setCapturedImage(null); // Clear any captured image
             setUploadedImage(base64Image);
         }
     };
@@ -249,11 +231,11 @@ const App: React.FC = () => {
     fileInputRef.current?.click();
   };
   
-  const handleCloseUploadedImage = () => {
+  const handleReturnToLiveView = () => {
     setUploadedImage(null);
+    setCapturedImage(null);
     setTranslatedItems([]);
     setRenderDimensions(null);
-    setStatusMessage("Initializing camera...");
   };
 
   const getLangName = useCallback((code: string) => {
@@ -286,7 +268,7 @@ const App: React.FC = () => {
             <div className="w-8 h-2 bg-gray-800 rounded-full"></div>
         </div>
         
-        <div className="absolute top-8 left-0 right-0 z-40 flex justify-center items-center gap-2 px-4">
+        <header className="absolute top-8 left-0 right-0 z-40 flex justify-center items-center gap-2 px-4">
             <button onClick={() => handleOpenModal('source')} className="bg-black/50 text-white text-sm font-medium py-2 px-4 rounded-full hover:bg-black/75 transition-colors">
                 {getLangName(sourceLang)}
             </button>
@@ -296,16 +278,16 @@ const App: React.FC = () => {
             <button onClick={() => handleOpenModal('target')} className="bg-black/50 text-white text-sm font-medium py-2 px-4 rounded-full hover:bg-black/75 transition-colors">
                 {getLangName(targetLang)}
             </button>
-        </div>
+        </header>
         
         <main ref={mediaContainerRef} className="flex-grow relative w-full h-full bg-gray-800 mt-12 flex justify-center items-center overflow-hidden">
-          {uploadedImage ? (
+          {staticImageSource ? (
             <img
               ref={imageRef}
-              src={uploadedImage}
+              src={staticImageSource}
               className="max-w-full max-h-full object-contain"
               onLoad={updateRenderDimensions}
-              alt="Uploaded content"
+              alt="Content for translation"
             />
           ) : stream ? (
             <video
@@ -329,29 +311,15 @@ const App: React.FC = () => {
               const top = renderDimensions.y + (bounds.y / 100 * renderDimensions.height);
               const width = bounds.width / 100 * renderDimensions.width;
               const height = bounds.height / 100 * renderDimensions.height;
-              
               const fontSize = height * 0.75;
 
               return (
                   <div
                       key={index}
                       className="absolute bg-black bg-opacity-75 text-white p-1 rounded-sm flex items-center justify-center transition-all duration-300 ease-in-out"
-                      style={{
-                          left: `${left}px`,
-                          top: `${top}px`,
-                          width: `${width}px`,
-                          height: `${height}px`,
-                          overflow: 'hidden',
-                          boxSizing: 'border-box',
-                      }}
+                      style={{ left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px`, overflow: 'hidden', boxSizing: 'border-box' }}
                   >
-                      <p
-                          className="text-center font-semibold"
-                          style={{
-                              fontSize: `clamp(8px, ${fontSize}px, 80px)`,
-                              lineHeight: 1,
-                          }}
-                      >
+                      <p className="text-center font-semibold" style={{ fontSize: `clamp(8px, ${fontSize}px, 80px)`, lineHeight: 1 }}>
                           {item.translatedText}
                       </p>
                   </div>
@@ -360,12 +328,15 @@ const App: React.FC = () => {
           
           <canvas ref={canvasRef} className="hidden"></canvas>
 
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex justify-center items-center text-white z-20">
-            {isLoading && <LoadingSpinner />}
-            {statusMessage && <p className="ml-2 text-center text-sm font-medium animate-pulse">{statusMessage}</p>}
-          </div>
-
-          {/* Hidden file input, controlled by the FAB */}
+          {statusMessage && (
+            <div className="absolute bottom-28 left-1/2 -translate-x-1/2 w-max max-w-xs p-4 flex justify-center items-center text-white z-20 pointer-events-none">
+                <div className="bg-black/60 rounded-full px-4 py-2 flex items-center shadow-lg">
+                    {isLoading && <LoadingSpinner />}
+                    <p className={`ml-2 text-center text-sm font-medium ${isLoading ? 'animate-pulse' : ''}`}>{statusMessage}</p>
+                </div>
+            </div>
+          )}
+          
           <input
             type="file"
             ref={fileInputRef}
@@ -374,24 +345,23 @@ const App: React.FC = () => {
             accept="image/jpeg,image/png,image/webp,image/bmp,image/gif"
           />
 
-          {/* Floating Action Button */}
-          {uploadedImage ? (
-              <button
-                  onClick={handleCloseUploadedImage}
-                  className="absolute bottom-6 right-6 z-30 w-16 h-16 bg-cyan-500 rounded-full flex items-center justify-center shadow-lg hover:bg-cyan-600 transition-all duration-300 ease-in-out transform hover:scale-105"
-                  aria-label="Return to live camera"
-              >
-                  <CameraIcon className="h-8 w-8 text-white" strokeWidth={1.5} />
-              </button>
-          ) : (
-              <button
-                  onClick={handleGalleryClick}
-                  className="absolute bottom-6 right-6 z-30 w-16 h-16 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-all duration-300 ease-in-out transform hover:scale-105"
-                  aria-label="Upload an image from your gallery"
-              >
-                  <GalleryIcon />
-              </button>
-          )}
+          <div className="absolute bottom-0 left-0 right-0 z-30 flex justify-around items-center p-4 h-28 bg-gradient-to-t from-black/80 to-transparent">
+            <button onClick={handleGalleryClick} aria-label="Upload an image from your gallery" className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                <GalleryIcon />
+            </button>
+
+            <button
+                onClick={isStaticView ? handleReturnToLiveView : handleCaptureAndTranslate}
+                className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg ring-4 ring-black/30 transition-all duration-300 ease-in-out transform hover:scale-105"
+                aria-label={isStaticView ? 'Return to live camera' : 'Capture and translate'}
+            >
+                {isStaticView ? <CloseIcon className="h-8 w-8 text-black" /> : <CameraIcon className="h-8 w-8 text-black" strokeWidth={2} />}
+            </button>
+            
+             <button onClick={() => alert('Settings will be implemented in a future update.')} aria-label="Settings" className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                <GearIcon />
+            </button>
+          </div>
         </main>
 
         <LanguageModal 
