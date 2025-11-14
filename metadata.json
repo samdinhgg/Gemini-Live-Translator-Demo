@@ -1,0 +1,7 @@
+{
+  "name": "Gemini Live Translator",
+  "description": "An application that uses the device's camera to capture text in the real world and overlays live translations using the Gemini API.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
