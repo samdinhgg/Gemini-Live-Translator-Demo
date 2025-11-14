@@ -82,3 +82,12 @@ export const translateTextInImage = async (
 Ensure your response strictly adheres to the provided JSON schema. If no text is found, return an empty array.`;
 ```
 
+## TODO
+
+- A lot. Please refer to the [TODO](TODO.md) file.
+
+## Contact
+
+- Drop me an email or reach out to me on Google Chat ([chat.google.com](https://chat.google.com)): [`xuansam@google.com`](mailto:xuansam@google.com).
+
+
