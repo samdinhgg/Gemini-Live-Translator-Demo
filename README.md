@@ -7,7 +7,7 @@
 
 Features:
 
-- A user capture or upload a photo for language detection and translation.
+- A user captures or uploads a photo for ~language detection and~ translation.
 - The translated text will be displayed onto an overlay above the original text (z-index).
 
 ## Document
