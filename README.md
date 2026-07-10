@@ -1,6 +1,6 @@
 <div align="center">
 <!-- <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" /> -->
-<img src="Gemini-Live-Translator.png" />
+<img src="docs/assets/Gemini-Live-Translator.png" />
 </div>
 
 # Gemini Live Translator - A Demo App
@@ -89,5 +89,4 @@ Ensure your response strictly adheres to the provided JSON schema. If no text is
 ## Contact
 
 - Drop me an email or reach out to me on Google Chat ([chat.google.com](https://chat.google.com)): [`xuansam@google.com`](mailto:xuansam@google.com).
-
 
